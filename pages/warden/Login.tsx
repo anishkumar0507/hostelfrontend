@@ -26,6 +26,12 @@ const WardenLogin: React.FC = () => {
       return;
     }
     
+    // Validate required fields for login
+    if (!isSignup && (!email.trim() || !password.trim())) {
+      showToast('Please enter both email and password', 'error');
+      return;
+    }
+    
     // Validate password length
     if (password.length < 6) {
       showToast('Password must be at least 6 characters long', 'error');
@@ -39,34 +45,77 @@ const WardenLogin: React.FC = () => {
         // Warden signup
         const response = await authAPI.wardenSignup(name.trim(), email.trim(), password);
         
-        if (response.success && response.token) {
-          showToast('Warden account created successfully!', 'success');
-          // Auto-login after successful signup
-          login(response.token);
-          // Optionally redirect to dashboard (already handled by login function)
-        } else {
-          showToast(response.message || 'Signup failed. Please try again.', 'error');
+        if (!response.success) {
+          const errorMessage = response.message || 'Signup failed. Please try again.';
+          showToast(errorMessage, 'error');
+          setIsLoading(false);
+          return;
         }
+
+        if (!response.token) {
+          showToast('Signup failed. No authentication token received.', 'error');
+          setIsLoading(false);
+          return;
+        }
+
+        showToast('Warden account created successfully!', 'success');
+        // Auto-login after successful signup
+        login(response.token);
       } else {
         // Login
         const response = await authAPI.login(email.trim(), password);
         
-        if (response.success && response.token) {
-          // Verify it's a warden
-          if (response.user?.role !== 'warden') {
-            showToast('Access denied. This portal is for wardens only.', 'error');
-            setIsLoading(false);
-            return;
-          }
-          login(response.token);
-          showToast('Login successful!', 'success');
-        } else {
-          showToast(response.message || 'Login failed. Please check your credentials.', 'error');
+        if (!response.success) {
+          // Handle case where backend returns success: false
+          const errorMessage = response.message || 'Login failed. Please check your credentials.';
+          setPassword('');
+          showToast(errorMessage, 'error');
+          setIsLoading(false);
+          return;
         }
+
+        if (!response.token) {
+          setPassword('');
+          showToast('Login failed. No authentication token received.', 'error');
+          setIsLoading(false);
+          return;
+        }
+
+        // Verify it's a warden
+        if (response.user?.role !== 'warden') {
+          setPassword('');
+          showToast('Access denied. This portal is for wardens only.', 'error');
+          setIsLoading(false);
+          return;
+        }
+
+        login(response.token);
+        showToast('Login successful!', 'success');
       }
     } catch (error: any) {
-      const errorMessage = error.message || error.toString() || (isSignup ? 'Signup failed. Please try again.' : 'Login failed. Please check your credentials.');
+      // Clear password field on error
+      setPassword('');
+      
+      // Extract error message with proper handling
+      let errorMessage: string;
+      
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.status === 401) {
+        errorMessage = 'Invalid email or password. Please check your credentials.';
+      } else if (error.status === 403) {
+        errorMessage = 'Access denied. You do not have permission to perform this action.';
+      } else if (error.status === 400) {
+        errorMessage = error.message || 'Invalid request. Please check your input.';
+      } else {
+        errorMessage = isSignup 
+          ? 'Signup failed. Please try again.' 
+          : 'Login failed. Please check your credentials.';
+      }
+      
+      // Always show error toast - no silent failures
       showToast(errorMessage, 'error');
+      console.error(`${isSignup ? 'Signup' : 'Login'} error:`, error);
     } finally {
       setIsLoading(false);
     }

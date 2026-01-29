@@ -1,6 +1,24 @@
 // API utility functions
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+// Get API base URL from environment variable
+// In production, VITE_API_BASE_URL must be set (e.g., https://your-backend.onrender.com/api)
+// For local development, use VITE_API_BASE_URL=http://localhost:5001/api
+const getApiBaseUrl = (): string => {
+  const apiUrl = import.meta.env.VITE_API_BASE_URL;
+  
+  if (!apiUrl) {
+    // In production, throw error if API URL is not set
+    if (import.meta.env.PROD) {
+      throw new Error('VITE_API_BASE_URL environment variable is not set. Please configure it for production deployment.');
+    }
+    // Fallback for local development only
+    return 'http://localhost:5001/api';
+  }
+  
+  return apiUrl;
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -73,15 +91,44 @@ const apiRequest = async <T = any>(
     }
 
     if (!response.ok) {
-      const errorMessage = data.message || data.error || `Request failed with status ${response.status}`;
-      throw new Error(errorMessage);
+      // Handle specific HTTP status codes with clear error messages
+      let errorMessage = data.message || data.error;
+      
+      if (!errorMessage) {
+        switch (response.status) {
+          case 401:
+            errorMessage = 'Invalid email or password. Please check your credentials.';
+            break;
+          case 403:
+            errorMessage = 'Access denied. You do not have permission to perform this action.';
+            break;
+          case 404:
+            errorMessage = 'Resource not found.';
+            break;
+          case 400:
+            errorMessage = 'Invalid request. Please check your input.';
+            break;
+          case 500:
+            errorMessage = 'Server error. Please try again later.';
+            break;
+          default:
+            errorMessage = `Request failed with status ${response.status}`;
+        }
+      }
+      
+      const error = new Error(errorMessage);
+      (error as any).status = response.status;
+      (error as any).data = data;
+      throw error;
     }
 
     return data;
   } catch (error: any) {
+    // Handle network errors
     if (error instanceof TypeError && error.message.includes('fetch')) {
       throw new Error('Network error. Please check if the backend server is running.');
     }
+    // Re-throw API errors with status codes
     throw error;
   }
 };

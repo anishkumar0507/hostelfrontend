@@ -17,26 +17,67 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Basic validation
+    if (!email.trim() || !password.trim()) {
+      showToast('Please enter both email and password', 'error');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const response = await authAPI.login(email, password);
-      if (response.success && response.token) {
-        login(response.token);
+      const response = await authAPI.login(email.trim(), password);
+      
+      // Check if login was successful
+      if (!response.success) {
+        // Handle case where backend returns success: false
+        const errorMessage = response.message || 'Login failed. Please check your credentials.';
+        setPassword('');
+        showToast(errorMessage, 'error');
+        setIsLoading(false);
+        return;
+      }
 
-        // Check if password change is required - redirect to change password page
-        if (response.requiresPasswordChange || response.forcePasswordChange) {
-          navigate('/student/change-password');
-          showToast('Please change your temporary password to continue', 'error');
-        } else {
-          showToast('Login successful!', 'success');
-          navigate('/student/dashboard');
-        }
+      // Verify token exists
+      if (!response.token) {
+        setPassword('');
+        showToast('Login failed. No authentication token received.', 'error');
+        setIsLoading(false);
+        return;
+      }
+
+      // Login successful - set token and redirect
+      login(response.token);
+
+      // Check if password change is required - redirect to change password page
+      if (response.requiresPasswordChange || response.forcePasswordChange) {
+        navigate('/student/change-password');
+        showToast('Please change your temporary password to continue', 'error');
+      } else {
+        showToast('Login successful!', 'success');
+        navigate('/student/dashboard');
       }
     } catch (error: any) {
       // Clear password field on login error
       setPassword('');
-      showToast(error.message || 'Invalid email or password', 'error');
+      
+      // Extract error message
+      let errorMessage = 'Login failed. Please check your credentials.';
+      
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.status === 401) {
+        errorMessage = 'Invalid email or password. Please check your credentials.';
+      } else if (error.status === 403) {
+        errorMessage = 'Access denied. This portal is for students only.';
+      } else if (error.status === 400) {
+        errorMessage = error.message || 'Invalid request. Please check your input.';
+      }
+      
+      // Always show error toast - no silent failures
+      showToast(errorMessage, 'error');
+      console.error('Login error:', error);
     } finally {
       setIsLoading(false);
     }
