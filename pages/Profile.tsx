@@ -1,0 +1,200 @@
+
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { User, Mail, Phone, MapPin, Hash, Building2, Calendar, Shield, Key, ChevronRight, AlertCircle, Info } from 'lucide-react';
+import { QRCodeDisplay } from '../components/QRCodeDisplay';
+import { studentsAPI } from '../utils/api';
+import { EmptyState } from '../components/EmptyState';
+import { Skeleton } from '../components/Skeleton';
+import { PasswordChangeModal } from '../components/PasswordChangeModal';
+
+const Profile: React.FC = () => {
+  const [profileData, setProfileData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await studentsAPI.getProfile();
+      if (response.success && response.data) {
+        setProfileData(response.data);
+      } else {
+        setError('Failed to load profile data');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to load profile');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="max-w-5xl mx-auto pb-20">
+        <Skeleton />
+      </div>
+    );
+  }
+
+  if (error || !profileData) {
+    return (
+      <div className="max-w-5xl mx-auto pb-20">
+        <EmptyState
+          icon={AlertCircle}
+          title="Profile Not Found"
+          message={error || "Unable to load your profile. Please try again later."}
+        />
+      </div>
+    );
+  }
+
+  const studentName = profileData.userId?.name || 'Unknown';
+  const studentEmail = profileData.userId?.email || 'N/A';
+  const rollNumber = profileData.rollNumber || 'N/A';
+  const studentClass = profileData.class || 'N/A';
+  const section = profileData.section || '';
+  const room = profileData.room || 'N/A';
+  const phone = profileData.phone || 'N/A';
+  const studentId = rollNumber;
+  
+  const info = [
+    { label: 'Student Full Name', value: studentName, icon: User, adminOnly: true },
+    { label: 'Institutional Roll No', value: rollNumber, icon: Hash, adminOnly: true },
+    { label: 'Student Email', value: studentEmail, icon: Mail, adminOnly: true },
+    { label: 'Emergency Contact', value: phone, icon: Phone, adminOnly: false },
+    { label: 'Hostel Block', value: section || 'N/A', icon: Building2, adminOnly: true },
+    { label: 'Room Number', value: room, icon: MapPin, adminOnly: true },
+    { label: 'Class / Batch', value: studentClass, icon: Calendar, adminOnly: true },
+  ];
+
+  return (
+    <div className="max-w-5xl mx-auto pb-20">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative mb-12"
+      >
+        <div className="h-60 bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 rounded-[40px] shadow-xl" />
+        <div className="absolute -bottom-16 left-12 flex flex-col md:flex-row items-center md:items-end gap-8 text-center md:text-left">
+          <div className="w-44 h-44 rounded-[40px] border-8 border-slate-50 bg-white shadow-2xl overflow-hidden relative group">
+            <div className="w-full h-full bg-gradient-to-br from-indigo-600 to-violet-700 flex items-center justify-center text-white">
+              <span className="text-5xl font-extrabold tracking-tight">
+                {(studentName || 'S').trim().slice(0, 1).toUpperCase()}
+              </span>
+            </div>
+          </div>
+          <div className="pb-4">
+            <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">{studentName}</h2>
+            <p className="text-indigo-600 font-bold uppercase tracking-widest text-xs mt-2">
+              {studentClass} {section ? `• Section ${section}` : ''} {room !== 'N/A' ? `• Room ${room}` : ''}
+            </p>
+          </div>
+        </div>
+      </motion.div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 mt-24">
+        <div className="lg:col-span-2 space-y-8">
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="bg-white rounded-[32px] border border-slate-200 shadow-sm p-10"
+          >
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
+                <div className="w-2 h-6 bg-indigo-600 rounded-full" />
+                Hostel Records Info
+              </h3>
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-600 bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-100 uppercase tracking-widest">
+                <Shield size={12} />
+                Hostel Verified
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-10 gap-x-12">
+              {info.map((item) => (
+                <div key={item.label} className="group relative">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-2">{item.label}</p>
+                  <div className="flex items-center gap-4">
+                    <div className="p-2.5 bg-slate-50 text-indigo-500 rounded-xl group-hover:bg-indigo-50 transition-colors">
+                      <item.icon size={18} />
+                    </div>
+                    <p className={`font-bold tracking-tight ${item.adminOnly ? 'text-slate-800' : 'text-slate-600 italic'}`}>
+                      {item.value}
+                    </p>
+                    {item.adminOnly && (
+                      <Shield size={14} className="text-slate-200" title="Hostel record (admin only)" />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white rounded-[32px] border border-slate-200 shadow-sm p-10"
+          >
+            <h3 className="text-xl font-bold text-slate-900 mb-8 flex items-center gap-3">
+              <div className="w-2 h-6 bg-indigo-600 rounded-full" />
+              Digital Student ID Card
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-10 items-center">
+              <div>
+                <QRCodeDisplay value={studentId} size={180} />
+                <p className="text-center mt-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gate Entry/Exit QR</p>
+              </div>
+              <div className="space-y-4">
+                <div className="p-5 bg-indigo-50 rounded-3xl border border-indigo-100 flex gap-4">
+                  <Info className="text-indigo-600 shrink-0" size={20} />
+                  <p className="text-xs font-bold text-indigo-900 leading-relaxed">
+                    Show this student QR code at the hostel gate scanner to log your entry and exit compliance automatically.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        <div className="space-y-8">
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="bg-white rounded-[32px] border border-slate-200 shadow-sm p-10"
+          >
+            <h3 className="font-bold text-slate-900 text-xl mb-6 tracking-tight">Account Security</h3>
+            <div className="space-y-4">
+              <button
+                onClick={() => setIsChangePasswordOpen(true)}
+                className="w-full flex items-center justify-between p-5 bg-slate-50 rounded-3xl hover:bg-slate-100 transition-all group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="p-2.5 bg-white text-indigo-600 rounded-xl shadow-sm">
+                    <Key size={18} />
+                  </div>
+                  <span className="text-sm font-bold text-slate-700">Change Password</span>
+                </div>
+                <ChevronRight size={18} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
+      <PasswordChangeModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+        onSuccess={() => setIsChangePasswordOpen(false)}
+      />
+    </div>
+  );
+};
+
+export default Profile;
