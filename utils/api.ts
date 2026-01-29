@@ -4,15 +4,29 @@
 // In production, VITE_API_BASE_URL must be set (e.g., https://your-backend.onrender.com/api)
 // For local development, use VITE_API_BASE_URL=http://localhost:5000/api
 const getApiBaseUrl = (): string => {
-  const apiUrl = import.meta.env.VITE_API_BASE_URL;
+  // Try to get from import.meta.env (set at build time by Vite)
+  let apiUrl = import.meta.env.VITE_API_BASE_URL;
   
+  // In production, if not set, check if we can derive from window location
   if (!apiUrl) {
-    // In production, throw error if API URL is not set
     if (import.meta.env.PROD) {
-      throw new Error('VITE_API_BASE_URL environment variable is not set. Please configure it for production deployment.');
+      // Try to use window.API_BASE_URL if it was injected
+      if (typeof window !== 'undefined' && (window as any).API_BASE_URL) {
+        apiUrl = (window as any).API_BASE_URL;
+      }
+      
+      // If still not available, throw error
+      if (!apiUrl) {
+        throw new Error(
+          'VITE_API_BASE_URL environment variable is not set. ' +
+          'Please set it in your .env or Vercel environment variables. ' +
+          'Example: https://hostelbackend-5j0c.onrender.com/api'
+        );
+      }
+    } else {
+      // Fallback for local development only
+      apiUrl = 'http://localhost:5000/api';
     }
-    // Fallback for local development only
-    return 'http://localhost:5000/api';
   }
   
   return apiUrl;
