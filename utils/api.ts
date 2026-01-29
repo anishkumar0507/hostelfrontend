@@ -2,7 +2,7 @@
 
 // Get API base URL from environment variable
 // In production, VITE_API_BASE_URL must be set (e.g., https://your-backend.onrender.com/api)
-// For local development, use VITE_API_BASE_URL=http://localhost:5001/api
+// For local development, use VITE_API_BASE_URL=http://localhost:5000/api
 const getApiBaseUrl = (): string => {
   const apiUrl = import.meta.env.VITE_API_BASE_URL;
   
@@ -12,7 +12,7 @@ const getApiBaseUrl = (): string => {
       throw new Error('VITE_API_BASE_URL environment variable is not set. Please configure it for production deployment.');
     }
     // Fallback for local development only
-    return 'http://localhost:5001/api';
+    return 'http://localhost:5000/api';
   }
   
   return apiUrl;
