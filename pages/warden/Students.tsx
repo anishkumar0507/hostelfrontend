@@ -1,15 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Filter, Mail, Phone, MoreVertical, GraduationCap, Plus, X, User, Hash, DoorClosed, CreditCard, ShieldCheck, Download, Edit2, Trash2 } from 'lucide-react';
+import { Search, Filter, Mail, Phone, MoreVertical, GraduationCap, Plus, X, User, Hash, DoorClosed, CreditCard, ShieldCheck, Download, Edit2, Trash2, UserPlus } from 'lucide-react';
 import { useUI } from '../../App';
 import { exportStudentList } from '../../components/PDFGenerator';
-import { studentsAPI } from '../../utils/api';
+import { studentsAPI, parentAPI } from '../../utils/api';
 import { EmptyState } from '../../components/EmptyState';
 
 const WardenStudents: React.FC = () => {
   const [search, setSearch] = useState('');
   const [isModalOpen, setModalOpen] = useState(false);
+  const [isParentModalOpen, setParentModalOpen] = useState(false);
+  const [parentStudent, setParentStudent] = useState<any>(null);
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { showToast } = useUI();
@@ -95,6 +97,30 @@ const WardenStudents: React.FC = () => {
       setEditingStudent(null);
     } catch (error: any) {
       showToast(error.message || 'Failed to save student', 'error');
+    }
+  };
+
+  const handleRegisterParent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!parentStudent) return;
+    const formData = new FormData(e.target as HTMLFormElement);
+    const name = formData.get('parentName') as string;
+    const email = formData.get('parentEmail') as string;
+    const relationship = (formData.get('relationship') as string) || 'Guardian';
+    try {
+      const response = await parentAPI.register({
+        studentId: parentStudent.id,
+        name,
+        email,
+        relationship,
+      });
+      if (response.success) {
+        showToast('Parent registered successfully. Temporary password sent to their email.', 'success');
+        setParentModalOpen(false);
+        setParentStudent(null);
+      }
+    } catch (error: any) {
+      showToast(error.message || 'Failed to register parent', 'error');
     }
   };
 
@@ -209,6 +235,13 @@ const WardenStudents: React.FC = () => {
                   <td className="p-8 text-right">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
                       <button 
+                        onClick={() => { setParentStudent(student); setParentModalOpen(true); }}
+                        className="p-3 bg-slate-900 text-emerald-400 hover:text-emerald-300 rounded-xl transition-all border border-slate-800"
+                        title="Register Parent"
+                      >
+                        <UserPlus size={18} />
+                      </button>
+                      <button 
                         onClick={() => { setEditingStudent(student); setModalOpen(true); }}
                         className="p-3 bg-slate-900 text-slate-400 hover:text-white rounded-xl transition-all border border-slate-800"
                       >
@@ -299,6 +332,40 @@ const WardenStudents: React.FC = () => {
                 <div className="flex gap-5 mt-12">
                   <button type="button" onClick={() => setModalOpen(false)} className="flex-1 py-5 bg-white/5 text-slate-400 font-extrabold rounded-2xl hover:bg-white/10 transition-all uppercase text-xs tracking-widest">Cancel</button>
                   <button type="submit" className="flex-[2] py-5 bg-indigo-600 text-white font-extrabold rounded-2xl shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition-all uppercase text-xs tracking-widest">Save Student Profile</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Register Parent Modal */}
+      <AnimatePresence>
+        {isParentModalOpen && parentStudent && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setParentModalOpen(false)} className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl" />
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-900 border border-slate-700 rounded-[40px] w-full max-w-md shadow-2xl relative z-10 overflow-hidden">
+              <div className="p-10 border-b border-slate-800">
+                <h3 className="text-2xl font-extrabold text-white">Register Parent for {parentStudent.name}</h3>
+                <p className="text-slate-500 mt-1">Parent will receive temporary password via email</p>
+              </div>
+              <form onSubmit={handleRegisterParent} className="p-10 space-y-6">
+                <input type="hidden" name="studentId" value={parentStudent.id} />
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Parent Name</label>
+                  <input required name="parentName" className="w-full px-5 py-4 bg-slate-800 border border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-600 text-white" placeholder="e.g., John Doe" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Parent Email</label>
+                  <input required name="parentEmail" type="email" className="w-full px-5 py-4 bg-slate-800 border border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-600 text-white" placeholder="parent@email.com" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-2">Relationship (optional)</label>
+                  <input name="relationship" className="w-full px-5 py-4 bg-slate-800 border border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-600 text-white" placeholder="e.g., Father, Mother, Guardian" />
+                </div>
+                <div className="flex gap-4">
+                  <button type="button" onClick={() => setParentModalOpen(false)} className="flex-1 py-4 bg-white/5 text-slate-400 font-bold rounded-2xl hover:bg-white/10">Cancel</button>
+                  <button type="submit" className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl">Register Parent</button>
                 </div>
               </form>
             </motion.div>

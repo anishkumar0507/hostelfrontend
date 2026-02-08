@@ -2,7 +2,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, ShieldCheck, Home } from 'lucide-react';
+import { GraduationCap, ShieldCheck, Home, Users } from 'lucide-react';
 
 const SelectRole: React.FC = () => {
   const navigate = useNavigate();
@@ -15,6 +15,14 @@ const SelectRole: React.FC = () => {
       icon: GraduationCap,
       color: 'bg-indigo-600',
       path: '/student/login'
+    },
+    {
+      id: 'parent',
+      title: 'I am a Parent/Guardian',
+      desc: 'View your child\'s room, fees, outing requests, and chat with warden.',
+      icon: Users,
+      color: 'bg-emerald-600',
+      path: '/parent/login'
     },
     {
       id: 'warden',
@@ -42,7 +50,7 @@ const SelectRole: React.FC = () => {
         <p className="text-slate-500 mt-3 text-lg">Choose your role to continue to the login page</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
         {roles.map((role, i) => (
           <motion.div
             key={role.id}

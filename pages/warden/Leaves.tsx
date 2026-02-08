@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { PlaneTakeoff, Check, X, Calendar, User, MapPin, RefreshCw } from 'lucide-react';
+import { PlaneTakeoff, Check, X, Calendar, User, MapPin, RefreshCw, Download } from 'lucide-react';
 import { leavesAPI } from '../../utils/api';
 import { useUI } from '../../App';
 import { LeaveRequest } from '../../types';
@@ -10,6 +10,8 @@ const WardenLeaves: React.FC = () => {
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [previousCount, setPreviousCount] = useState(0);
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
+  const [isExporting, setIsExporting] = useState(false);
   const { showToast } = useUI();
 
   useEffect(() => {
@@ -25,7 +27,7 @@ const WardenLeaves: React.FC = () => {
 
   const loadLeaveRequests = async () => {
     try {
-      const response = await leavesAPI.getAll({ status: 'Pending' });
+      const response = await leavesAPI.getAll({ status: 'ApprovedByParent' });
       if (response.success) {
         const newRequests = response.data;
         const newCount = newRequests.length;
@@ -49,6 +51,8 @@ const WardenLeaves: React.FC = () => {
   };
 
   const handleStatusUpdate = async (requestId: string, status: string, rejectionReason?: string) => {
+    if (processingIds.has(requestId)) return;
+    setProcessingIds((prev) => new Set(prev).add(requestId));
     try {
       const response = await leavesAPI.updateStatus(requestId, { status, rejectionReason });
       if (response.success) {
@@ -57,8 +61,35 @@ const WardenLeaves: React.FC = () => {
       } else {
         showToast(response.message || `Failed to ${status.toLowerCase()} request`);
       }
-    } catch (error) {
-      showToast(`Failed to ${status.toLowerCase()} request`, 'error');
+    } catch (error: any) {
+      showToast(error.message || `Failed to ${status.toLowerCase()} request`, 'error');
+    } finally {
+      setProcessingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(requestId);
+        return next;
+      });
+    }
+  };
+
+  const handleExport = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const { blob, fileName } = await leavesAPI.exportOutingReport();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName || 'outing-report.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showToast('Outing report downloaded', 'success');
+    } catch (error: any) {
+      showToast(error.message || 'Failed to download outing report', 'error');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -67,9 +98,16 @@ const WardenLeaves: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h2 className="text-3xl font-bold text-white tracking-tight">Outing Pass Approvals</h2>
-          <p className="text-slate-400 font-medium">Review and process student outing requests</p>
+          <p className="text-slate-400 font-medium">Review parent-approved outing requests (3-step: Student → Parent → Warden)</p>
         </div>
         <div className="flex items-center gap-4">
+          <button
+            onClick={handleExport}
+            disabled={isExporting}
+            className={`flex items-center gap-2 px-4 py-3.5 bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 rounded-2xl font-bold transition-all hover:bg-indigo-500/20 ${isExporting ? 'opacity-60 cursor-not-allowed' : ''}`}
+          >
+            <Download size={20} /> {isExporting ? 'Downloading...' : 'Download Outing Report'}
+          </button>
           <button
             onClick={loadLeaveRequests}
             className="flex items-center gap-2 px-4 py-3.5 bg-slate-800 text-slate-300 hover:text-white border border-slate-700 rounded-2xl font-bold transition-all hover:bg-slate-700"
@@ -104,7 +142,7 @@ const WardenLeaves: React.FC = () => {
                   <p className="text-sm font-extrabold text-white">{req.type}</p>
                 </div>
               </div>
-              <span className="px-3 py-1 bg-amber-500/10 text-amber-400 rounded-lg text-[10px] font-bold uppercase tracking-widest border border-amber-500/20">Awaiting Approval</span>
+              <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg text-[10px] font-bold uppercase tracking-widest border border-emerald-500/20">Parent Approved</span>
             </div>
             <div className="p-8 space-y-6">
               <div className="flex items-center gap-4">
@@ -122,13 +160,15 @@ const WardenLeaves: React.FC = () => {
               <div className="flex gap-4 pt-4">
                 <button
                   onClick={() => handleStatusUpdate(req.id, 'Approved')}
-                  className="flex-1 py-4 bg-emerald-600 text-white font-bold rounded-[20px] shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all active:scale-95"
+                  disabled={processingIds.has(req.id)}
+                  className={`flex-1 py-4 bg-emerald-600 text-white font-bold rounded-[20px] shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all active:scale-95 ${processingIds.has(req.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
                   <Check size={20} /> Approve Pass
                 </button>
                 <button
                   onClick={() => handleStatusUpdate(req.id, 'Rejected')}
-                  className="flex-1 py-4 bg-slate-900 text-slate-400 font-bold rounded-[20px] hover:bg-red-500 hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2 border border-slate-700"
+                  disabled={processingIds.has(req.id)}
+                  className={`flex-1 py-4 bg-slate-900 text-slate-400 font-bold rounded-[20px] hover:bg-red-500 hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2 border border-slate-700 ${processingIds.has(req.id) ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
                   <X size={20} /> Reject
                 </button>

@@ -3,9 +3,7 @@ const CACHE_NAME = 'hostelease-v1.1';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/offline.html',
-  'https://cdn.tailwindcss.com',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap'
+  '/offline.html'
 ];
 
 self.addEventListener('install', event => {
@@ -27,6 +25,12 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  const requestUrl = new URL(event.request.url);
+
+  if (requestUrl.origin !== self.location.origin) {
+    return;
+  }
+
   // Only handle navigation requests for offline page
   if (event.request.mode === 'navigate') {
     event.respondWith(

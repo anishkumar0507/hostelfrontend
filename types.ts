@@ -14,7 +14,8 @@ export enum PaymentStatus {
 
 export enum UserRole {
   STUDENT = 'STUDENT',
-  WARDEN = 'WARDEN'
+  WARDEN = 'WARDEN',
+  PARENT = 'PARENT'
 }
 
 export enum EntryStatus {

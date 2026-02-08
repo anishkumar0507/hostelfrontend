@@ -15,6 +15,19 @@ import ChangePassword from './pages/ChangePassword';
 import StudentSidebar from './components/Sidebar';
 import StudentNavbar from './components/Navbar';
 
+// Parent Components
+import ParentLogin from './pages/parent/Login';
+import ParentChangePassword from './pages/parent/ChangePassword';
+import ParentDashboard from './pages/parent/Dashboard';
+import ParentRoom from './pages/parent/Room';
+import ParentFees from './pages/parent/Fees';
+import ParentEntryExit from './pages/parent/EntryExit';
+import ParentLeaves from './pages/parent/Leaves';
+import ParentLocation from './pages/parent/Location';
+import ParentChat from './pages/parent/Chat';
+import ParentSidebar from './components/parent/Sidebar';
+import ParentNavbar from './components/parent/Navbar';
+
 // Warden Components
 import WardenLogin from './pages/warden/Login';
 import WardenDashboard from './pages/warden/Dashboard';
@@ -26,6 +39,7 @@ import WardenSidebar from './components/warden/Sidebar';
 import WardenNavbar from './components/warden/Navbar';
 import WardenQRScanner from './pages/warden/QRScanner';
 import EntryExitLogs from './pages/warden/EntryExitLogs';
+import WardenChat from './pages/warden/Chat';
 
 // Common
 import SelectRole from './pages/SelectRole';
@@ -93,20 +107,19 @@ const PanelLayout: React.FC<{ children: React.ReactNode; role: UserRole }> = ({ 
     setSidebarOpen(false);
   }, [location.pathname]);
 
+  const bgClass = role === UserRole.WARDEN ? 'bg-slate-900' : role === UserRole.PARENT ? 'bg-emerald-950' : 'bg-slate-50';
+  const mainClass = role === UserRole.WARDEN ? 'text-white' : role === UserRole.PARENT ? 'text-white' : 'text-slate-900';
+
   return (
-    <div className={`flex h-screen overflow-hidden font-sans ${role === UserRole.WARDEN ? 'bg-slate-900' : 'bg-slate-50'}`}>
-      {role === UserRole.STUDENT ? (
-        <StudentSidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} />
-      ) : (
-        <WardenSidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} />
-      )}
+    <div className={`flex h-screen overflow-hidden font-sans ${bgClass}`}>
+      {role === UserRole.STUDENT && <StudentSidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} />}
+      {role === UserRole.WARDEN && <WardenSidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} />}
+      {role === UserRole.PARENT && <ParentSidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} />}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        {role === UserRole.STUDENT ? (
-          <StudentNavbar onMenuClick={() => setSidebarOpen(true)} />
-        ) : (
-          <WardenNavbar onMenuClick={() => setSidebarOpen(true)} />
-        )}
-        <main className={`flex-1 overflow-y-auto p-4 md:p-8 ${role === UserRole.WARDEN ? 'text-white' : 'text-slate-900'}`}>
+        {role === UserRole.STUDENT && <StudentNavbar onMenuClick={() => setSidebarOpen(true)} />}
+        {role === UserRole.WARDEN && <WardenNavbar onMenuClick={() => setSidebarOpen(true)} />}
+        {role === UserRole.PARENT && <ParentNavbar onMenuClick={() => setSidebarOpen(true)} />}
+        <main className={`flex-1 overflow-y-auto p-4 md:p-8 ${mainClass}`}>
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -130,14 +143,14 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole: UserRo
   if (!isAuthenticated) return <Navigate to={`/${requiredRole.toLowerCase()}/login`} replace />;
   if (role !== requiredRole) return <Navigate to="/select-role" replace />;
   
-  // Check if student needs to change password (mandatory redirect)
-  if (requiredRole === UserRole.STUDENT) {
+  // Check if student or parent needs to change password (mandatory redirect)
+  if (requiredRole === UserRole.STUDENT || requiredRole === UserRole.PARENT) {
     const token = localStorage.getItem('user_token');
     if (token) {
       const decoded = decodeToken(token);
       if (decoded && decoded.isTempPassword === true) {
-        // Force redirect to change password page - cannot bypass
-        return <Navigate to="/student/change-password" replace />;
+        const changePath = requiredRole === UserRole.PARENT ? '/parent/change-password' : '/student/change-password';
+        return <Navigate to={changePath} replace />;
       }
     }
   }
@@ -152,7 +165,10 @@ const App: React.FC = () => {
     if (!token) return null;
     const decoded = decodeToken(token);
     if (!decoded || !decoded.role) return null;
-    return decoded.role.toUpperCase() === 'WARDEN' ? UserRole.WARDEN : UserRole.STUDENT;
+    const r = decoded.role.toUpperCase();
+    if (r === 'WARDEN') return UserRole.WARDEN;
+    if (r === 'PARENT') return UserRole.PARENT;
+    return UserRole.STUDENT;
   };
 
   const [role, setRole] = useState<UserRole | null>(getRoleFromToken());
@@ -163,7 +179,8 @@ const App: React.FC = () => {
     localStorage.setItem('user_token', token);
     // Extract role from token if not provided
     const decoded = decodeToken(token);
-    const extractedRole = userRole || (decoded?.role?.toUpperCase() === 'WARDEN' ? UserRole.WARDEN : UserRole.STUDENT);
+    const r = decoded?.role?.toUpperCase();
+    const extractedRole = userRole || (r === 'WARDEN' ? UserRole.WARDEN : r === 'PARENT' ? UserRole.PARENT : UserRole.STUDENT);
     localStorage.setItem('user_role', extractedRole);
     setRole(extractedRole);
     setIsAuthenticated(true);
@@ -199,6 +216,18 @@ const App: React.FC = () => {
             <Route path="/student/profile" element={<ProtectedRoute requiredRole={UserRole.STUDENT}><StudentProfile /></ProtectedRoute>} />
 
             {/* Warden Routes */}
+            {/* Parent Routes */}
+            <Route path="/parent/login" element={isAuthenticated && role === UserRole.PARENT ? <Navigate to="/parent/dashboard" replace /> : <ParentLogin />} />
+            <Route path="/parent/change-password" element={<ParentChangePassword />} />
+            <Route path="/parent/dashboard" element={<ProtectedRoute requiredRole={UserRole.PARENT}><ParentDashboard /></ProtectedRoute>} />
+            <Route path="/parent/room" element={<ProtectedRoute requiredRole={UserRole.PARENT}><ParentRoom /></ProtectedRoute>} />
+            <Route path="/parent/fees" element={<ProtectedRoute requiredRole={UserRole.PARENT}><ParentFees /></ProtectedRoute>} />
+            <Route path="/parent/entry-exit" element={<ProtectedRoute requiredRole={UserRole.PARENT}><ParentEntryExit /></ProtectedRoute>} />
+            <Route path="/parent/leaves" element={<ProtectedRoute requiredRole={UserRole.PARENT}><ParentLeaves /></ProtectedRoute>} />
+            <Route path="/parent/location" element={<ProtectedRoute requiredRole={UserRole.PARENT}><ParentLocation /></ProtectedRoute>} />
+            <Route path="/parent/chat" element={<ProtectedRoute requiredRole={UserRole.PARENT}><ParentChat /></ProtectedRoute>} />
+
+            {/* Warden Routes */}
             <Route path="/warden/login" element={isAuthenticated && role === UserRole.WARDEN ? <Navigate to="/warden/dashboard" replace /> : <WardenLogin />} />
             <Route path="/warden/dashboard" element={<ProtectedRoute requiredRole={UserRole.WARDEN}><WardenDashboard /></ProtectedRoute>} />
             <Route path="/warden/students" element={<ProtectedRoute requiredRole={UserRole.WARDEN}><WardenStudents /></ProtectedRoute>} />
@@ -207,8 +236,9 @@ const App: React.FC = () => {
             <Route path="/warden/leaves" element={<ProtectedRoute requiredRole={UserRole.WARDEN}><WardenLeaves /></ProtectedRoute>} />
             <Route path="/warden/scan" element={<ProtectedRoute requiredRole={UserRole.WARDEN}><WardenQRScanner /></ProtectedRoute>} />
             <Route path="/warden/security" element={<ProtectedRoute requiredRole={UserRole.WARDEN}><EntryExitLogs /></ProtectedRoute>} />
+            <Route path="/warden/chat" element={<ProtectedRoute requiredRole={UserRole.WARDEN}><WardenChat /></ProtectedRoute>} />
 
-            <Route path="/" element={<Navigate to={isAuthenticated ? (role === UserRole.WARDEN ? "/warden/dashboard" : "/student/dashboard") : "/select-role"} replace />} />
+            <Route path="/" element={<Navigate to={isAuthenticated ? (role === UserRole.WARDEN ? "/warden/dashboard" : role === UserRole.PARENT ? "/parent/dashboard" : "/student/dashboard") : "/select-role"} replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </HashRouter>

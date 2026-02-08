@@ -3,16 +3,30 @@
 // Get API base URL from environment variable
 // In production, VITE_API_BASE_URL must be set (e.g., https://your-backend.onrender.com/api)
 // For local development, use VITE_API_BASE_URL=http://localhost:5000/api
+const normalizeApiBaseUrl = (rawUrl?: string): string | undefined => {
+  if (!rawUrl) return rawUrl;
+
+  try {
+    const url = new URL(rawUrl);
+    const normalizedPath = url.pathname && url.pathname !== '/' ? url.pathname.replace(/\/$/, '') : '/api';
+    url.pathname = normalizedPath;
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    const trimmed = rawUrl.replace(/\/$/, '');
+    return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+  }
+};
+
 const getApiBaseUrl = (): string => {
   // Try to get from import.meta.env (set at build time by Vite)
-  let apiUrl = import.meta.env.VITE_API_BASE_URL;
+  let apiUrl = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
   
   // In production, if not set, check if we can derive from window location
   if (!apiUrl) {
     if (import.meta.env.PROD) {
       // Try to use window.API_BASE_URL if it was injected
       if (typeof window !== 'undefined' && (window as any).API_BASE_URL) {
-        apiUrl = (window as any).API_BASE_URL;
+        apiUrl = normalizeApiBaseUrl((window as any).API_BASE_URL);
       }
       
       // If still not available, throw error
@@ -145,6 +159,31 @@ const apiRequest = async <T = any>(
     // Re-throw API errors with status codes
     throw error;
   }
+};
+
+const apiRequestBlob = async (endpoint: string): Promise<{ blob: Blob; fileName?: string }> => {
+  const token = getAuthToken();
+  const headers: HeadersInit = {
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, { headers });
+
+  if (!response.ok) {
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const data = await response.json();
+      throw new Error(data.message || data.error || 'Request failed');
+    }
+    const text = await response.text();
+    throw new Error(text || 'Request failed');
+  }
+
+  const disposition = response.headers.get('content-disposition') || '';
+  const fileNameMatch = disposition.match(/filename="?([^";]+)"?/i);
+  const fileName = fileNameMatch ? fileNameMatch[1] : undefined;
+
+  return { blob: await response.blob(), fileName };
 };
 
 // Auth API
@@ -305,4 +344,65 @@ export const leavesAPI = {
     });
     return { ...res, data: (res as any).leave ?? res.data };
   },
+  parentApproval: async (id: string, data: { status: string; rejectionReason?: string }) => {
+    const res = await apiRequest(`/leaves/${id}/parent-approval`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return { ...res, data: (res as any).leave ?? res.data };
+  },
+  exportOutingReport: async () => {
+    return apiRequestBlob('/warden/outing/export');
+  },
+};
+
+// Parent API
+export const parentAPI = {
+  getChild: () => apiRequest('/parent/child'),
+  getChildRoom: () => apiRequest('/parent/child/room'),
+  getChildFees: () => apiRequest('/parent/child/fees'),
+  getChildEntryExit: (params?: { month?: string; year?: string }) => {
+    const queryString = params ? '?' + new URLSearchParams(params as any).toString() : '';
+    return apiRequest(`/parent/child/entry-exit${queryString}`);
+  },
+  getChildLeaves: () => apiRequest('/parent/child/leaves'),
+  getChildStatus: () => apiRequest('/parent/child/status'),
+  getChildLocation: () => apiRequest('/parent/child/location'),
+  register: (data: { studentId: string; name: string; email: string; relationship?: string }) =>
+    apiRequest('/parent/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+};
+
+// Location API
+export const locationAPI = {
+  toggle: () =>
+    apiRequest('/location/toggle', {
+      method: 'PUT',
+    }),
+  update: (data: { lat: number; lng: number }) =>
+    apiRequest('/location/update', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  getMyStatus: () => apiRequest('/location/me'),
+  getStudent: (studentId: string) => apiRequest(`/location/${studentId}`),
+};
+
+// Chat API
+export const chatAPI = {
+  getMyChat: () => apiRequest('/chat'),
+  sendMessage: (text: string) =>
+    apiRequest('/chat/message', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
+  getWardenChats: () => apiRequest('/chat/warden'),
+  getWardenChatById: (chatId: string) => apiRequest(`/chat/warden/${chatId}`),
+  wardenSendMessage: (chatId: string, text: string) =>
+    apiRequest(`/chat/warden/${chatId}/message`, {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
 };

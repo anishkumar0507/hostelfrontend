@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Phone, MapPin, Hash, Building2, Calendar, Shield, Key, ChevronRight, AlertCircle, Info } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Hash, Building2, Calendar, Shield, Key, ChevronRight, AlertCircle, Info, Navigation } from 'lucide-react';
 import { QRCodeDisplay } from '../components/QRCodeDisplay';
-import { studentsAPI } from '../utils/api';
+import { studentsAPI, locationAPI } from '../utils/api';
 import { EmptyState } from '../components/EmptyState';
 import { Skeleton } from '../components/Skeleton';
 import { PasswordChangeModal } from '../components/PasswordChangeModal';
@@ -13,9 +13,18 @@ const Profile: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [locationSharing, setLocationSharing] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationUpdating, setLocationUpdating] = useState(false);
 
   useEffect(() => {
     fetchProfile();
+  }, []);
+
+  useEffect(() => {
+    locationAPI.getMyStatus().then((r) => {
+      if (r.success && r.data) setLocationSharing(r.data.isSharingEnabled ?? false);
+    }).catch(() => {});
   }, []);
 
   const fetchProfile = async () => {
@@ -63,6 +72,33 @@ const Profile: React.FC = () => {
   const room = profileData.room || 'N/A';
   const phone = profileData.phone || 'N/A';
   const studentId = rollNumber;
+
+  const handleLocationToggle = async () => {
+    setLocationLoading(true);
+    try {
+      const r = await locationAPI.toggle();
+      if (r.success && r.data) setLocationSharing(r.data.isSharingEnabled);
+    } catch {
+      // ignore
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
+  const handleUpdateLocation = () => {
+    if (!locationSharing || !navigator.geolocation) return;
+    setLocationUpdating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          await locationAPI.update({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        } finally {
+          setLocationUpdating(false);
+        }
+      },
+      () => setLocationUpdating(false)
+    );
+  };
   
   const info = [
     { label: 'Student Full Name', value: studentName, icon: User, adminOnly: true },
@@ -169,6 +205,37 @@ const Profile: React.FC = () => {
             animate={{ opacity: 1, x: 0 }}
             className="bg-white rounded-[32px] border border-slate-200 shadow-sm p-10"
           >
+            <h3 className="font-bold text-slate-900 text-xl mb-6 tracking-tight">Location Sharing</h3>
+            <div className="space-y-4 mb-8">
+              <div className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl">
+                <div className="flex items-center gap-4">
+                  <div className="p-2.5 bg-white text-indigo-600 rounded-xl shadow-sm">
+                    <Navigation size={18} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-700">Share location with warden & parent</p>
+                    <p className="text-xs text-slate-500">Enable to let warden and your parent see your last known location</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleLocationToggle}
+                  disabled={locationLoading}
+                  className={`relative w-14 h-8 rounded-full transition-colors ${locationSharing ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                >
+                  <span className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform ${locationSharing ? 'left-7' : 'left-1'}`} />
+                </button>
+              </div>
+              {locationSharing && navigator.geolocation && (
+                <button
+                  onClick={handleUpdateLocation}
+                  disabled={locationUpdating}
+                  className="w-full py-3 text-sm font-bold text-indigo-600 bg-indigo-50 rounded-xl hover:bg-indigo-100 disabled:opacity-50"
+                >
+                  {locationUpdating ? 'Updating...' : 'Update my location now'}
+                </button>
+              )}
+            </div>
+
             <h3 className="font-bold text-slate-900 text-xl mb-6 tracking-tight">Account Security</h3>
             <div className="space-y-4">
               <button

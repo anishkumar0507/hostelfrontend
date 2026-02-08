@@ -99,11 +99,27 @@ const LeaveRequestPage: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Approved': return 'text-emerald-600 bg-emerald-50 border-emerald-100';
-      case 'Pending': return 'text-amber-600 bg-amber-50 border-amber-100';
-      case 'Rejected': return 'text-red-600 bg-red-50 border-red-100';
+      case 'Pending':
+      case 'PendingParent': return 'text-amber-600 bg-amber-50 border-amber-100';
+      case 'ApprovedByParent': return 'text-indigo-600 bg-indigo-50 border-indigo-100';
+      case 'Rejected':
+      case 'RejectedByParent': return 'text-red-600 bg-red-50 border-red-100';
       case 'Cancelled': return 'text-slate-600 bg-slate-50 border-slate-100';
       default: return 'text-slate-600 bg-slate-50 border-slate-100';
     }
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      PendingParent: 'Awaiting Parent Approval',
+      ApprovedByParent: 'Awaiting Warden Approval',
+      RejectedByParent: 'Rejected by Parent',
+      Pending: 'Pending',
+      Approved: 'Approved',
+      Rejected: 'Rejected',
+      Cancelled: 'Cancelled',
+    };
+    return labels[status] || status;
   };
 
   return (
@@ -157,7 +173,7 @@ const LeaveRequestPage: React.FC = () => {
                 <div className="flex-1">
                   <div className="flex items-center gap-4 mb-4">
                     <span className={`px-3 py-1 rounded-full border text-[10px] font-bold uppercase tracking-widest ${getStatusColor(req.status)}`}>
-                      {req.status}
+                      {getStatusLabel(req.status)}
                     </span>
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{req.id}</span>
                   </div>

@@ -1,19 +1,17 @@
-
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  LayoutDashboard, 
-  Users, 
-  ClipboardList, 
-  PlaneTakeoff, 
+import {
+  LayoutDashboard,
+  DoorClosed,
+  CreditCard,
+  Activity,
+  PlaneTakeoff,
+  MapPin,
+  MessageCircle,
   LogOut,
   X,
-  ShieldCheck,
-  Camera,
-  Activity,
-  CreditCard,
-  MessageCircle
+  Users,
 } from 'lucide-react';
 import { useAuth } from '../../App';
 
@@ -23,29 +21,28 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { path: '/warden/dashboard', label: 'Admin Overview', icon: LayoutDashboard },
-  { path: '/warden/students', label: 'Student List', icon: Users },
-  { path: '/warden/payments', label: 'Payment Management', icon: CreditCard },
-  { path: '/warden/complaints', label: 'Hostel Helpdesk', icon: ClipboardList },
-  { path: '/warden/leaves', label: 'Outing Approvals', icon: PlaneTakeoff },
-  { path: '/warden/security', label: 'Gate Security Log', icon: Activity },
-  { path: '/warden/scan', label: 'Gate Entry Scan', icon: Camera },
-  { path: '/warden/chat', label: 'Parent Chats', icon: MessageCircle },
+  { path: '/parent/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/parent/room', label: "Child's Room", icon: DoorClosed },
+  { path: '/parent/fees', label: 'Fee & Payments', icon: CreditCard },
+  { path: '/parent/entry-exit', label: 'Entry/Exit Logs', icon: Activity },
+  { path: '/parent/leaves', label: 'Outing Requests', icon: PlaneTakeoff },
+  { path: '/parent/location', label: 'Live Location', icon: MapPin },
+  { path: '/parent/chat', label: 'Chat with Warden', icon: MessageCircle },
 ];
 
-const WardenSidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+const ParentSidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { logout } = useAuth();
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-slate-900 border-r border-slate-800 w-72 text-slate-300 shadow-2xl">
+    <div className="flex flex-col h-full bg-emerald-900 border-r border-emerald-800 w-72 text-emerald-100 shadow-2xl">
       <div className="p-8 flex items-center justify-between">
         <div className="flex items-center gap-3 text-white font-extrabold text-2xl tracking-tighter">
           <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
-            <ShieldCheck size={24} />
+            <Users size={24} />
           </div>
-          <span>EaseAdmin</span>
+          <span>Parent Portal</span>
         </div>
-        <button onClick={onClose} className="md:hidden p-2 text-slate-500 hover:text-white hover:bg-white/5 rounded-xl transition-colors">
+        <button onClick={onClose} className="md:hidden p-2 text-emerald-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors">
           <X size={24} />
         </button>
       </div>
@@ -55,16 +52,15 @@ const WardenSidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <NavLink
             key={item.path}
             to={item.path}
-            className={({ isActive }) => `
-              flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-300 group
-              ${isActive 
-                ? 'bg-emerald-500 text-white shadow-xl shadow-emerald-500/10 font-bold' 
-                : 'text-slate-500 hover:bg-white/5 hover:text-slate-200'}
-            `}
+            className={({ isActive }) =>
+              `flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-300 group ${
+                isActive ? 'bg-emerald-500 text-white shadow-xl shadow-emerald-500/10 font-bold' : 'text-emerald-300 hover:bg-white/5 hover:text-white'
+              }`
+            }
           >
             {({ isActive }) => (
               <>
-                <item.icon size={20} className={`${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-200'} transition-colors`} />
+                <item.icon size={20} className={isActive ? 'text-white' : 'text-emerald-400 group-hover:text-white transition-colors'} />
                 <span className="tracking-tight">{item.label}</span>
               </>
             )}
@@ -72,13 +68,13 @@ const WardenSidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         ))}
       </nav>
 
-      <div className="p-6 border-t border-slate-800">
+      <div className="p-6 border-t border-emerald-800">
         <button
           onClick={logout}
-          className="flex items-center gap-4 px-6 py-4 w-full text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-2xl transition-all duration-300 font-bold"
+          className="flex items-center gap-4 px-6 py-4 w-full text-emerald-400 hover:text-red-400 hover:bg-red-400/10 rounded-2xl transition-all duration-300 font-bold"
         >
           <LogOut size={20} />
-          <span>Warden Logout</span>
+          <span>Logout</span>
         </button>
       </div>
     </div>
@@ -103,4 +99,4 @@ const WardenSidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   );
 };
 
-export default WardenSidebar;
+export default ParentSidebar;
