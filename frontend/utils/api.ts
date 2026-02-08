@@ -29,6 +29,15 @@ export const getApiBaseUrl = (): string => {
     }
   }
   
+  if (!apiUrl) {
+    return apiUrl;
+  }
+
+  // Normalize base URL to include /api if missing
+  if (!apiUrl.endsWith('/api') && !apiUrl.includes('/api/')) {
+    apiUrl = apiUrl.replace(/\/+$/, '') + '/api';
+  }
+
   return apiUrl;
 };
 
