@@ -1,0 +1,22 @@
+
+{
+  "name": "HostelEase Management System",
+  "short_name": "HostelEase",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "https://img.icons8.com/color/144/home--v1.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://img.icons8.com/color/512/home--v1.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
